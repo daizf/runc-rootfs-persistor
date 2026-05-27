@@ -17,7 +17,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const realRunc = "runc"
+const (
+	realRunc  = "runc"
+	envBinary = "RUNC_BINARY"
+)
 
 var log = logrus.WithField("component", "runc-rootfs-persist")
 
@@ -208,15 +211,21 @@ func handleDelete(args []string) error {
 }
 
 func execRunc(args ...string) {
-	bin, err := exec.LookPath(realRunc)
-	if err != nil {
+	bin := os.Getenv(envBinary)
+	if bin == "" {
 		bin = realRunc
 	}
+	if found, err := exec.LookPath(bin); err == nil {
+		bin = found
+	}
 
-	log.WithField("args", fmt.Sprintf("%v", args)).Debug("exec runc")
+	log.WithFields(logrus.Fields{
+		"binary": bin,
+		"args":   fmt.Sprintf("%v", args),
+	}).Debug("exec downstream runtime")
 
 	if err := syscall.Exec(bin, append([]string{bin}, args...), os.Environ()); err != nil {
-		log.Fatalf("exec runc: %v", err)
+		log.Fatalf("exec %s: %v", bin, err)
 	}
 }
 
