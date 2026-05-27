@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app-persistent
+  annotations:
+    eki.rootfs-persist.enabled: "true"
+    eki.rootfs-persist.volume-mapping: |-
+      [
+        {
+          "containerName": "app",
+          "mountPath": "/mnt/pv",
+          "subPath": "app-rootfs"
+        }
+      ]
+spec:
+  runtimeClassName: rootfs-persist
+  containers:
+  - name: app
+    image: nginx:1.25
+    command:
+    - sh
+    - -c
+    - |
+      if [ ! -f /persistent-test-file ]; then
+        echo "first run - creating test file"
+        date > /persistent-test-file
+      else
+        echo "found existing persistent file from previous run:"
+        cat /persistent-test-file
+      fi
+      nginx -g "daemon off;"
+    volumeMounts:
+    - name: root-pv
+      mountPath: /mnt/pv
+  volumes:
+  - name: root-pv
+    persistentVolumeClaim:
+      claimName: ebs-pvc
