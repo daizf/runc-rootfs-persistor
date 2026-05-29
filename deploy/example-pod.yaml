@@ -13,7 +13,7 @@ metadata:
         }
       ]
 spec:
-  runtimeClassName: rootfs-persist
+  runtimeClassName: runc-rootfs-persist
   containers:
   - name: app
     image: nginx:1.25

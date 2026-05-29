@@ -15,25 +15,81 @@ spec:
         app: runc-rootfs-persist-installer
     spec:
       hostPID: true
+      imagePullSecrets:
+      - name: cis-hub-auth
       initContainers:
       - name: install
-        image: runc-rootfs-persist:latest
-        imagePullPolicy: IfNotPresent
+        image: cis-hub-huabei-3.cmecloud.cn/dzf/runc-rootfs-persist:latest
+        imagePullPolicy: Always
         command:
-        - sh
+        - /bin/sh
         - -c
         - |
+          set -e
+
+          # 1. Install binary
           cp /wrapper /host/usr/local/bin/runc-rootfs-persist
           chmod +x /host/usr/local/bin/runc-rootfs-persist
-          echo "runc-rootfs-persist installed on $(hostname)"
+          echo "runc-rootfs-persist binary installed on $(hostname)"
+
+          # 2. Configure containerd
+          CONFIG="/host/etc/containerd/config.toml"
+          RUNTIME_SECTION='[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist]'
+
+          if [ ! -f "$CONFIG" ]; then
+            echo "WARNING: containerd config not found at ${CONFIG}, skipping runtime registration"
+            echo "Please manually add the runtime section to containerd config"
+            exit 0
+          fi
+
+          if grep -qF -- "$RUNTIME_SECTION" "$CONFIG"; then
+            echo "containerd runtime 'runc-rootfs-persist' already configured"
+          else
+            cp "$CONFIG" "${CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
+            UNTRUSTED='[plugins."io.containerd.grpc.v1.cri".containerd.untrusted_workload_runtime]'
+            SNIPPET="/tmp/runc-rootfs-persist-config.toml"
+            cat > "$SNIPPET" <<'CONFEOF'
+
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist]
+            runtime_type = "io.containerd.runc.v2"
+            pod_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
+            container_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist.options]
+              BinaryName = "/usr/local/bin/runc-rootfs-persist"
+
+          CONFEOF
+            if grep -qF -- "$UNTRUSTED" "$CONFIG"; then
+              INDENT=$(grep -F "$UNTRUSTED" "$CONFIG" | head -1 | sed 's/^\([[:space:]]*\).*/\1/')
+              LINE=$(grep -nF "$UNTRUSTED" "$CONFIG" | head -1 | cut -d: -f1)
+              head -n $((LINE - 1)) "$CONFIG" > "${CONFIG}.new"
+              if [ -n "$INDENT" ]; then
+                sed "s/^/${INDENT}/" "$SNIPPET" >> "${CONFIG}.new"
+              else
+                cat "$SNIPPET" >> "${CONFIG}.new"
+              fi
+              tail -n +$LINE "$CONFIG" >> "${CONFIG}.new"
+              mv "${CONFIG}.new" "$CONFIG"
+            else
+              cat "$SNIPPET" >> "$CONFIG"
+            fi
+            rm -f "$SNIPPET"
+            echo "containerd config updated with 'runc-rootfs-persist' runtime section"
+          fi
+
+          echo "============================================"
+          echo "  RESTART containerd to apply the new runtime:"
+          echo "    systemctl restart containerd"
+          echo "============================================"
         securityContext:
           privileged: true
         volumeMounts:
         - name: host-bin
           mountPath: /host/usr/local/bin
+        - name: host-containerd-config
+          mountPath: /host/etc/containerd
       containers:
       - name: sleep
-        image: busybox:1.36
+        image: kcscis-d5095ef9.ecis.huabei-3.cmecloud.cn/ecloud/busybox:config-host-certs-v1.0
         command: ["sleep", "infinity"]
         resources:
           requests:
@@ -46,6 +102,10 @@ spec:
       - name: host-bin
         hostPath:
           path: /usr/local/bin
+          type: DirectoryOrCreate
+      - name: host-containerd-config
+        hostPath:
+          path: /etc/containerd
           type: DirectoryOrCreate
       tolerations:
       - operator: Exists

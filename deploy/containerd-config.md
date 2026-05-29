@@ -1,15 +1,15 @@
 ## containerd 配置片段
 
-### 添加 rootfs-persist runtime
+### 添加 runc-rootfs-persist runtime
 
 在 `/etc/containerd/config.toml` 中添加：
 
 ```toml
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist]
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist]
   runtime_type = "io.containerd.runc.v2"
   pod_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
   container_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist.options]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist.options]
     BinaryName = "/usr/local/bin/runc-rootfs-persist"
 ```
 
@@ -23,8 +23,8 @@
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
-  name: rootfs-persist
-handler: rootfs-persist
+  name: runc-rootfs-persist
+handler: runc-rootfs-persist
 ```
 
 ### 用户 Pod 使用
@@ -35,7 +35,7 @@ metadata:
     eki.rootfs-persist.enabled: "true"
     eki.rootfs-persist.volume-mapping: '[{"containerName":"app","mountPath":"/mnt/pv","subPath":"app-rootfs"}]'
 spec:
-  runtimeClassName: rootfs-persist
+  runtimeClassName: runc-rootfs-persist
 ```
 
 ---
@@ -55,11 +55,11 @@ containerd → runc-rootfs-persist → nvidia-container-runtime → runc
 ### containerd 配置
 
 ```toml
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist]
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist]
   runtime_type = "io.containerd.runc.v2"
   pod_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
   container_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist.options]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist.options]
     BinaryName = "/usr/local/bin/runc-rootfs-persist"
 ```
 

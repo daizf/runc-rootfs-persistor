@@ -60,11 +60,11 @@ ssh root@<node> chmod +x /usr/local/bin/runc-rootfs-persist
 在 `/etc/containerd/config.toml` 中添加：
 
 ```toml
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist]
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist]
   runtime_type = "io.containerd.runc.v2"
   pod_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
   container_annotations = ["eki.rootfs-persist.enabled", "eki.rootfs-persist.volume-mapping"]
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.rootfs-persist.options]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc-rootfs-persist.options]
     BinaryName = "/usr/local/bin/runc-rootfs-persist"
 ```
 
@@ -82,8 +82,8 @@ systemctl restart containerd
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
-  name: rootfs-persist
-handler: rootfs-persist
+  name: runc-rootfs-persist
+handler: runc-rootfs-persist
 ```
 
 ### 5. 使用
@@ -104,7 +104,7 @@ metadata:
         }
       ]
 spec:
-  runtimeClassName: rootfs-persist
+  runtimeClassName: runc-rootfs-persist
   containers:
   - name: app
     image: nginx:1.25

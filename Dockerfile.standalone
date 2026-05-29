@@ -1,0 +1,2 @@
+FROM kcscis-d5095ef9.ecis.huabei-3.cmecloud.cn/ecloud/busybox:latest
+COPY bin/runc-rootfs-persist /wrapper
